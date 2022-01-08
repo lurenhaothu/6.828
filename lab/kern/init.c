@@ -33,7 +33,8 @@ i386_init(void)
 	// Can't call cprintf until after we do this!
 	cons_init();
 
-	cprintf("6828 decimal is %o octal!\n", 6828);
+	cprintf("\n6828 decimal is %o octal!\n", 6828);
+	//cprintf("\033[1Fmthis is testing string print: %s\n\033[0m", "Hello world!");
 
 	// Test the stack backtrace function (lab 1 only)
 	test_backtrace(5);
