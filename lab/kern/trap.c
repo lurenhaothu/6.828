@@ -1,6 +1,7 @@
 #include <inc/mmu.h>
 #include <inc/x86.h>
 #include <inc/assert.h>
+#include <inc/error.h>
 
 #include <kern/pmap.h>
 #include <kern/trap.h>
@@ -88,7 +89,7 @@ trap_init(void)
 	SETGATE(idt[T_DIVIDE], 0, GD_KT, T_DIVIDE_HANDLER, 0);
 	SETGATE(idt[T_DEBUG], 0, GD_KT, T_DEBUG_HANDLER, 0);
 	SETGATE(idt[T_NMI], 0, GD_KT, T_NMI_HANDLER, 0);
-	SETGATE(idt[T_BRKPT], 0, GD_KT, T_BRKPT_HANDLER, 0);
+	SETGATE(idt[T_BRKPT], 0, GD_KT, T_BRKPT_HANDLER, 3);
 	SETGATE(idt[T_OFLOW], 0, GD_KT, T_OFLOW_HANDLER, 0);
 	SETGATE(idt[T_BOUND], 0, GD_KT, T_BOUND_HANDLER, 0);
 	SETGATE(idt[T_ILLOP], 0, GD_KT, T_ILLOP_HANDLER, 0);
@@ -103,8 +104,13 @@ trap_init(void)
 	SETGATE(idt[T_ALIGN], 0, GD_KT, T_ALIGN_HANDLER, 0);
 	SETGATE(idt[T_MCHK], 0, GD_KT, T_MCHK_HANDLER, 0);
 	SETGATE(idt[T_SIMDERR], 0, GD_KT, T_SIMDERR_HANDLER, 0);
-	SETGATE(idt[T_SYSCALL], 0, GD_KT, T_SYSCALL_HANDLER, 0);
+	SETGATE(idt[T_SYSCALL], 0, GD_KT, T_SYSCALL_HANDLER, 3);
 	SETGATE(idt[T_DEFAULT], 0, GD_KT, T_DEFAULT_HANDLER, 0);
+	//DLP: whether user can call int $num from code
+	// or processor have to generate the interrupt itself
+	// if user call int with no permission, it will turn to genetal protection
+	// auomatically
+
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -183,6 +189,30 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+	//cprintf("tf_trapno: %x\n", tf->tf_trapno);
+	int ret;
+	switch(tf->tf_trapno){
+		case T_PGFLT:
+			page_fault_handler(tf);
+			return;
+
+		case T_BRKPT:
+			//print_trapframe(tf);
+			monitor(tf);
+			return;
+		
+		case T_SYSCALL:
+			//cprintf("enter syscall\n");
+			ret = syscall(tf->tf_regs.reg_eax,
+				tf->tf_regs.reg_edx,
+				tf->tf_regs.reg_ecx,
+				tf->tf_regs.reg_ebx,
+				tf->tf_regs.reg_edi,
+				tf->tf_regs.reg_esi);
+			tf->tf_regs.reg_eax = ret;
+			if(ret == -E_INVAL) env_destroy(curenv);
+			return;
+	}
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
@@ -244,6 +274,9 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
+	if((tf->tf_cs & 3) == 0){
+		panic("page fault in kernel mode, va: %08x", fault_va);
+	}
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.

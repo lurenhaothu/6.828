@@ -373,7 +373,7 @@ load_icode(struct Env *e, uint8_t *binary)
 
 	for(; ph < eph; ph++){
 		if(ph->p_type != ELF_PROG_LOAD) continue;
-		region_alloc(e, (void*) ph->p_va, ph->p_filesz);
+		region_alloc(e, (void*) ph->p_va, ph->p_memsz);
 		cprintf("ph info:\n p_offset: %x, p_va: %x, p_pa: %x, p_memsz: %x\n", 
 			ph->p_offset, ph->p_va, ph->p_pa, ph->p_memsz);
 		lcr3(PADDR(e->env_pgdir));
