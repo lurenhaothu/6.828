@@ -1,6 +1,7 @@
 #include <inc/mmu.h>
 #include <inc/x86.h>
 #include <inc/assert.h>
+#include <inc/error.h>
 
 #include <kern/pmap.h>
 #include <kern/trap.h>
@@ -65,6 +66,26 @@ static const char *trapname(int trapno)
 	return "(unknown trap)";
 }
 
+extern void T_DIVIDE_HANDLER();
+extern void T_DEBUG_HANDLER();
+extern void T_NMI_HANDLER();
+extern void T_BRKPT_HANDLER();
+extern void T_OFLOW_HANDLER();
+extern void T_BOUND_HANDLER();
+extern void T_ILLOP_HANDLER();
+extern void T_DEVICE_HANDLER();
+extern void T_DBLFLT_HANDLER();
+extern void T_TSS_HANDLER();
+extern void T_SEGNP_HANDLER();
+extern void T_STACK_HANDLER();
+extern void T_GPFLT_HANDLER();
+extern void T_PGFLT_HANDLER();
+extern void T_FPERR_HANDLER();
+extern void T_ALIGN_HANDLER();
+extern void T_MCHK_HANDLER();
+extern void T_SIMDERR_HANDLER();
+extern void T_SYSCALL_HANDLER();
+extern void T_DEFAULT_HANDLER();
 
 void
 trap_init(void)
@@ -72,6 +93,30 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
+	SETGATE(idt[T_DIVIDE], 0, GD_KT, T_DIVIDE_HANDLER, 0);
+	SETGATE(idt[T_DEBUG], 0, GD_KT, T_DEBUG_HANDLER, 0);
+	SETGATE(idt[T_NMI], 0, GD_KT, T_NMI_HANDLER, 0);
+	SETGATE(idt[T_BRKPT], 0, GD_KT, T_BRKPT_HANDLER, 3);
+	SETGATE(idt[T_OFLOW], 0, GD_KT, T_OFLOW_HANDLER, 0);
+	SETGATE(idt[T_BOUND], 0, GD_KT, T_BOUND_HANDLER, 0);
+	SETGATE(idt[T_ILLOP], 0, GD_KT, T_ILLOP_HANDLER, 0);
+	SETGATE(idt[T_DEVICE], 0, GD_KT, T_DEVICE_HANDLER, 0);
+	SETGATE(idt[T_DBLFLT], 0, GD_KT, T_DBLFLT_HANDLER, 0);
+	SETGATE(idt[T_TSS], 0, GD_KT, T_TSS_HANDLER, 0);
+	SETGATE(idt[T_SEGNP], 0, GD_KT, T_SEGNP_HANDLER, 0);
+	SETGATE(idt[T_STACK], 0, GD_KT, T_STACK_HANDLER, 0);
+	SETGATE(idt[T_GPFLT], 0, GD_KT, T_GPFLT_HANDLER, 0);
+	SETGATE(idt[T_PGFLT], 0, GD_KT, T_PGFLT_HANDLER, 0);
+	SETGATE(idt[T_FPERR], 0, GD_KT, T_FPERR_HANDLER, 0);
+	SETGATE(idt[T_ALIGN], 0, GD_KT, T_ALIGN_HANDLER, 0);
+	SETGATE(idt[T_MCHK], 0, GD_KT, T_MCHK_HANDLER, 0);
+	SETGATE(idt[T_SIMDERR], 0, GD_KT, T_SIMDERR_HANDLER, 0);
+	SETGATE(idt[T_SYSCALL], 0, GD_KT, T_SYSCALL_HANDLER, 3);
+	SETGATE(idt[T_DEFAULT], 0, GD_KT, T_DEFAULT_HANDLER, 0);
+	//DLP: whether user can call int $num from code
+	// or processor have to generate the interrupt itself
+	// if user call int with no permission, it will turn to genetal protection
+	// auomatically
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -176,6 +221,30 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+	//cprintf("tf_trapno: %x\n", tf->tf_trapno);
+	int ret;
+	switch(tf->tf_trapno){
+		case T_PGFLT:
+			page_fault_handler(tf);
+			return;
+
+		case T_BRKPT:
+			//print_trapframe(tf);
+			monitor(tf);
+			return;
+		
+		case T_SYSCALL:
+			//cprintf("enter syscall\n");
+			ret = syscall(tf->tf_regs.reg_eax,
+				tf->tf_regs.reg_edx,
+				tf->tf_regs.reg_ecx,
+				tf->tf_regs.reg_ebx,
+				tf->tf_regs.reg_edi,
+				tf->tf_regs.reg_esi);
+			tf->tf_regs.reg_eax = ret;
+			if(ret == -E_INVAL) env_destroy(curenv);
+			return;
+	}
 
 	// Handle spurious interrupts
 	// The hardware sometimes raises these because of noise on the
@@ -271,6 +340,9 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
+	if((tf->tf_cs & 3) == 0){
+		panic("page fault in kernel mode, va: %08x", fault_va);
+	}
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.

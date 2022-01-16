@@ -22,6 +22,7 @@ sys_cputs(const char *s, size_t len)
 	// Destroy the environment if not.
 
 	// LAB 3: Your code here.
+	user_mem_assert(curenv, (void*)s, len, PTE_U | PTE_P);
 
 	// Print the string supplied by the user.
 	cprintf("%.*s", len, s);
@@ -39,6 +40,7 @@ sys_cgetc(void)
 static envid_t
 sys_getenvid(void)
 {
+	//cprintf("called getenvid, the id is %x\n", curenv->env_id);
 	return curenv->env_id;
 }
 
@@ -271,9 +273,18 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// Return any appropriate return value.
 	// LAB 3: Your code here.
 
-	panic("syscall not implemented");
-
+	//panic("syscall not implemented");
+	//cprintf("this syscal id is: %d\na1: %x, a2: %d\n", syscallno, a1, a2);
 	switch (syscallno) {
+	case SYS_cputs:
+		sys_cputs((char*)a1, a2);
+		return 0;
+	case SYS_cgetc:
+		return sys_cgetc();
+	case SYS_getenvid:
+		return sys_getenvid();
+	case SYS_env_destroy:
+		return sys_env_destroy(a2);
 	default:
 		return -E_INVAL;
 	}
