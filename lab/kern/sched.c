@@ -29,6 +29,28 @@ sched_yield(void)
 	// below to halt the cpu.
 
 	// LAB 4: Your code here.
+	//initially thiscpu->env is NULL
+	//cprintf("entered sched_yield() from cpu %d!\n", thiscpu->cpu_id);
+	int start;
+	if(thiscpu->cpu_env == NULL) start = 0;
+	else start = thiscpu->cpu_env->env_id & (NENV - 1);
+	for(int i = 0; i < NENV; i++){
+		int index = (start + i) % NENV;
+		//cprintf("search index: %d\n", index);
+		if(envs[index].env_status == ENV_RUNNABLE){
+			if(thiscpu->cpu_env != NULL && thiscpu->cpu_env->env_status == ENV_RUNNING){
+				thiscpu->cpu_env->env_status = ENV_RUNNABLE;
+			}
+			thiscpu->cpu_env = &envs[index];
+			thiscpu->cpu_env->env_runs++;
+			thiscpu->cpu_env->env_status = ENV_RUNNING;
+			//cprintf("check #46\n");
+			env_run(thiscpu->cpu_env); //will not return
+		}
+	}
+	if(thiscpu->cpu_env != NULL && thiscpu->cpu_env->env_status == ENV_RUNNING){
+		env_run(thiscpu->cpu_env);
+	}
 
 	// sched_halt never returns
 	sched_halt();
@@ -50,10 +72,11 @@ sched_halt(void)
 		     envs[i].env_status == ENV_DYING))
 			break;
 	}
+	//cprintf("hi! from sched_yield, i is %d\n", i);
 	if (i == NENV) {
 		cprintf("No runnable environments in the system!\n");
 		while (1)
-			monitor(NULL);
+			monitor(NULL); // never return
 	}
 
 	// Mark that no environment is running on this CPU

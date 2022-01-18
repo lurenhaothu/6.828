@@ -235,7 +235,7 @@ mem_init(void)
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
   
-  boot_map_region(kern_pgdir, KERNBASE, 0x10000000, 0x0, PTE_W | PTE_P);
+  	boot_map_region(kern_pgdir, KERNBASE, 0x10000000, 0x0, PTE_W | PTE_P);
   
 
 	// Initialize the SMP-related parts of the memory map
@@ -289,7 +289,10 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
-
+	for(int i = 0; i < NCPU; i++){
+		boot_map_region(kern_pgdir, KSTACKTOP - i * (KSTKSIZE + KSTKGAP) - KSTKSIZE, KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_W | PTE_P);
+	}
+	return;
 }
 
 // --------------------------------------------------------------
@@ -331,6 +334,7 @@ page_init(void)
 	size_t i = 0;
 	size_t FreeInKern = (size_t) PADDR(boot_alloc(0)) / PGSIZE;
 	for (i = 0; i < npages; i++) {
+		if(i == MPENTRY_PADDR / PGSIZE) continue;
 		if((i >= 1 && i < npages_basemem) ||
 			(i >= FreeInKern)){
 			pages[i].pp_ref = 0;
@@ -615,7 +619,11 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+	//panic("mmio_map_region not implemented");
+	int round_size = ROUNDUP(size, PGSIZE);
+	boot_map_region(kern_pgdir, base, round_size, pa, PTE_W | PTE_P | PTE_PCD | PTE_PWT);
+	base += round_size;
+	return (void*)(base - round_size);
 }
 
 static uintptr_t user_mem_check_addr;

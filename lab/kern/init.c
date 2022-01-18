@@ -36,6 +36,9 @@ i386_init(void)
 	trap_init();
 
 	// Lab 4 multiprocessor initialization functions
+
+	lock_kernel();
+
 	mp_init();
 	lapic_init();
 
@@ -54,7 +57,10 @@ i386_init(void)
 #else
 	// Touch all you want.
 
-	ENV_CREATE(user_primes, ENV_TYPE_USER);
+	ENV_CREATE(user_dumbfork, ENV_TYPE_USER);
+	//ENV_CREATE(user_yield, ENV_TYPE_USER);
+	//ENV_CREATE(user_yield, ENV_TYPE_USER);
+	//ENV_CREATE(user_yield, ENV_TYPE_USER);
   
 #endif // TEST*
 
@@ -112,6 +118,9 @@ mp_main(void)
 	// only one CPU can enter the scheduler at a time!
 	//
 	// Your code here:
+
+	lock_kernel();
+	sched_yield();
 
 	// Remove this after you finish Exercise 6
 	for (;;);

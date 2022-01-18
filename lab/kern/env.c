@@ -377,7 +377,7 @@ load_icode(struct Env *e, uint8_t *binary)
 	struct Proghdr* eph = ph + user_elfhdr->e_phnum;
 
 	e->env_tf.tf_eip = user_elfhdr->e_entry;
-	cprintf("entry: %x\n", user_elfhdr->e_entry);
+	//cprintf("entry: %x\n", user_elfhdr->e_entry);
 
 	//lcr3(PADDR(e->env_pgdir));
 	//cprintf("user addr entry: %x\n", user_elfhdr->e_entry);
@@ -386,8 +386,8 @@ load_icode(struct Env *e, uint8_t *binary)
 	for(; ph < eph; ph++){
 		if(ph->p_type != ELF_PROG_LOAD) continue;
 		region_alloc(e, (void*) ph->p_va, ph->p_memsz);
-		cprintf("ph info:\n p_offset: %x, p_va: %x, p_pa: %x, p_memsz: %x\n", 
-			ph->p_offset, ph->p_va, ph->p_pa, ph->p_memsz);
+		//cprintf("ph info:\n p_offset: %x, p_va: %x, p_pa: %x, p_memsz: %x\n", 
+		//	ph->p_offset, ph->p_va, ph->p_pa, ph->p_memsz);
 		lcr3(PADDR(e->env_pgdir));
 		memmove((uint8_t*)ph->p_va, (uint8_t*)binary + ph->p_offset, ph->p_filesz);
 		//for(int i = 0; i < 100; i++){
@@ -570,6 +570,8 @@ env_run(struct Env *e)
 	curenv->env_status = ENV_RUNNING;
 	curenv->env_runs++;
 	lcr3(PADDR(curenv->env_pgdir));
+
+	unlock_kernel();
 
 	env_pop_tf(&curenv->env_tf);
 	//panic("env_run not yet implemented");
