@@ -380,6 +380,38 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
 	// LAB 4: Your code here.
+	//cprintf("enter page fault handler with va: %08x\n", fault_va);
+	if(curenv->env_pgfault_upcall == NULL){
+		cprintf("[%08x] user fault va %08x ip %08x\n",
+			curenv->env_id, fault_va, tf->tf_eip);
+		print_trapframe(tf);
+		env_destroy(curenv);
+	}
+	//print_trapframe(tf);
+	//cprintf("UXSTACKTOP is %08x", UXSTACKTOP);
+	user_mem_assert(curenv, (void*)UXSTACKTOP - 1, PGSIZE, PTE_U | PTE_W); //assert UXSTACK perm
+	int UTrapSize = sizeof(struct UTrapframe);
+	int tf_esp_temp = tf->tf_esp;
+	if(tf_esp_temp >= USTACKTOP - PGSIZE && tf_esp_temp < USTACKTOP){
+		tf_esp_temp = UXSTACKTOP - UTrapSize;
+	}else{
+		tf_esp_temp = tf_esp_temp - UTrapSize - 4;
+	}
+	//cprintf("here, esp: %08x\n", tf_esp_temp);
+	user_mem_assert(curenv, (void*)tf_esp_temp, UTrapSize, PTE_U | PTE_W | PTE_P); //assert orverflow
+	//write the exception stack
+	struct UTrapframe* esp_uxstk = (struct UTrapframe*) tf_esp_temp;
+	lcr3(PADDR(curenv->env_pgdir));
+	esp_uxstk->utf_regs = tf->tf_regs;
+	esp_uxstk->utf_fault_va = fault_va;
+	esp_uxstk->utf_esp = tf->tf_esp;
+	esp_uxstk->utf_err = tf->tf_err;
+	esp_uxstk->utf_eip = tf->tf_eip;
+	esp_uxstk->utf_eflags = tf->tf_eflags;
+	lcr3(PADDR(kern_pgdir));
+	tf->tf_eip = (int)curenv->env_pgfault_upcall;
+	tf->tf_esp = tf_esp_temp;
+	env_run(curenv);
 
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
