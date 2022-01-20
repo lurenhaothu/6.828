@@ -87,6 +87,10 @@ extern void T_SIMDERR_HANDLER();
 extern void T_SYSCALL_HANDLER();
 extern void T_DEFAULT_HANDLER();
 
+#define SET_GATE_IRQ(num) \
+	extern void IRQ_HANDLER##num(); \
+	SETGATE(idt[IRQ_OFFSET + num], 0, GD_KT, IRQ_HANDLER##num, 0);
+
 void
 trap_init(void)
 {
@@ -113,6 +117,24 @@ trap_init(void)
 	SETGATE(idt[T_SIMDERR], 0, GD_KT, T_SIMDERR_HANDLER, 0);
 	SETGATE(idt[T_SYSCALL], 0, GD_KT, T_SYSCALL_HANDLER, 3);
 	SETGATE(idt[T_DEFAULT], 0, GD_KT, T_DEFAULT_HANDLER, 0);
+
+	SET_GATE_IRQ(0);
+	SET_GATE_IRQ(1);
+	SET_GATE_IRQ(2);
+	SET_GATE_IRQ(3);
+	SET_GATE_IRQ(4);
+	SET_GATE_IRQ(5);
+	SET_GATE_IRQ(6);
+	SET_GATE_IRQ(7);
+	SET_GATE_IRQ(8);
+	SET_GATE_IRQ(9);
+	SET_GATE_IRQ(10);
+	SET_GATE_IRQ(11);
+	SET_GATE_IRQ(12);
+	SET_GATE_IRQ(13);
+	SET_GATE_IRQ(14);
+	SET_GATE_IRQ(15);
+	
 	//DLP: whether user can call int $num from code
 	// or processor have to generate the interrupt itself
 	// if user call int with no permission, it will turn to genetal protection
@@ -244,6 +266,12 @@ trap_dispatch(struct Trapframe *tf)
 			//if(tf->tf_regs.reg_eax == SYS_exofork)cprintf("eax value is: %08x\n", ret);
 			tf->tf_regs.reg_eax = ret;
 			if(ret == -E_INVAL) env_destroy(curenv);
+			return;
+
+		case IRQ_OFFSET + IRQ_TIMER:
+			//cprintf("enter IRQ dispatch\n");
+			lapic_eoi(); //this is not memtioned in the lab instruction
+			sched_yield(); // never return;
 			return;
 	}
 

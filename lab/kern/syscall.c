@@ -296,11 +296,42 @@ sys_page_unmap(envid_t envid, void *va)
 //		current environment's address space.
 //	-E_NO_MEM if there's not enough memory to map srcva in envid's
 //		address space.
+
+#define REP_ERR(r) if(r < 0) panic("%e\n", r);
+
 static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_try_send not implemented");
+	//panic("sys_ipc_try_send not implemented");
+	//cprintf("enter send syscall, envid:%08x\n", envid);
+	int r;
+	struct Env* dstenv = NULL;
+	r = envid2env(envid, &dstenv, 0);
+	REP_ERR(r);
+	if(!dstenv->env_ipc_recving || (dstenv->env_status != ENV_NOT_RUNNABLE)){
+		return -E_IPC_NOT_RECV;
+	}
+	dstenv->env_ipc_from = thiscpu->cpu_env->env_id;
+	dstenv->env_ipc_value = value;
+	if((int)srcva < UTOP){//want to send a page
+		//cprintf("srcva: %08x\n", srcva);
+		if((int)srcva % PGSIZE != 0) return -E_INVAL;
+		if(!(perm & PTE_U) | !(perm & PTE_P)) return -E_INVAL;
+		if((perm & ~(PTE_U | PTE_P | PTE_AVAIL | PTE_W)) != 0) return -E_INVAL;
+		if(user_mem_check(thiscpu->cpu_env, srcva, PGSIZE, perm) < 0)
+			return -E_INVAL;
+		if((int)dstenv->env_ipc_dstva < UTOP){
+			struct PageInfo* pp = page_lookup(thiscpu->cpu_env->env_pgdir,
+				srcva, NULL);
+			page_insert(dstenv->env_pgdir, pp, dstenv->env_ipc_dstva, perm);
+			dstenv->env_ipc_perm = perm;
+		}
+	}
+	dstenv->env_ipc_recving = false;
+	dstenv->env_status = ENV_RUNNABLE;
+	//cprintf("send ipc to %08x finished\n", envid);
+	return 0;
 }
 
 // Block until a value is ready.  Record that you want to receive
@@ -318,7 +349,13 @@ static int
 sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_recv not implemented");
+	//panic("sys_ipc_recv not implemented");
+	int dstva_int = (int) dstva;
+	if(dstva_int < UTOP && dstva_int % PGSIZE != 0) return -E_INVAL;
+	thiscpu->cpu_env->env_status = ENV_NOT_RUNNABLE;
+	thiscpu->cpu_env->env_ipc_recving = true;
+	thiscpu->cpu_env->env_ipc_dstva = dstva;
+	//cprintf("ready to receive\n");
 	return 0;
 }
 
@@ -357,6 +394,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return sys_page_unmap(a1, (void*)a2);
 	case SYS_env_set_pgfault_upcall:
 		return sys_env_set_pgfault_upcall(a1, (void*)a2);
+	case SYS_ipc_try_send:
+		return sys_ipc_try_send(a1, a2, (void*)a3, a4);
+	case SYS_ipc_recv:
+		return sys_ipc_recv((void*)a1);
 	default:
 		return -E_INVAL;
 	}
