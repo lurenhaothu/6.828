@@ -25,7 +25,8 @@ i386_init(void)
 	// Can't call cprintf until after we do this!
 	cons_init();
 
-	cprintf("6828 decimal is %o octal!\n", 6828);
+	cprintf("\n6828 decimal is %o octal!\n", 6828);
+	//cprintf("\033[1Fmthis is testing string print: %s\n\033[0m", "Hello world!");
 
 	// Lab 2 memory management initialization functions
 	mem_init();
@@ -35,6 +36,9 @@ i386_init(void)
 	trap_init();
 
 	// Lab 4 multiprocessor initialization functions
+
+	lock_kernel();
+
 	mp_init();
 	lapic_init();
 
@@ -56,6 +60,7 @@ i386_init(void)
 #else
 	// Touch all you want.
 	ENV_CREATE(user_icode, ENV_TYPE_USER);
+
 #endif // TEST*
 
 	// Should not be necessary - drains keyboard because interrupt has given up.
@@ -115,6 +120,9 @@ mp_main(void)
 	// only one CPU can enter the scheduler at a time!
 	//
 	// Your code here:
+
+	lock_kernel();
+	sched_yield();
 
 	// Remove this after you finish Exercise 6
 	for (;;);

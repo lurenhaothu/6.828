@@ -120,7 +120,7 @@ lpt_putc(int c)
 
 	for (i = 0; !(inb(0x378+1) & 0x80) && i < 12800; i++)
 		delay();
-	outb(0x378+0, c);
+	outb(0x378+0, 'a');
 	outb(0x378+2, 0x08|0x04|0x01);
 	outb(0x378+2, 0x08);
 }
@@ -162,15 +162,22 @@ cga_init(void)
 	crt_pos = pos;
 }
 
-
-
 static void
 cga_putc(int c)
 {
 	// if no attribute given, then use black on white
 	if (!(c & ~0xFF))
-		c |= 0x0700;
-
+		c |= 0x0700; // was 0x0700 before
+	//text mode of VGA:
+	// 0x0 Black 0x8 Dark Gray
+	// 0x1 Blue  0x9 Light Blue
+	// 0x2 Green 0xA Light Green
+	// 0x3 Cyan  0xB Light Cyan
+	// 0x4 Red   0xC Light Red
+	// 0x5 Magenta 0xD Pink
+	// 0x6 Brown 0xE Yellow
+	// 0x7 Light Gray 0xF White
+	
 	switch (c & 0xff) {
 	case '\b':
 		if (crt_pos > 0) {
