@@ -4,7 +4,7 @@
  * see the materials available on the class references page.
  */
 
-#include "fs.h"
+#include <fs/fs.h>
 #include <inc/x86.h>
 
 #define IDE_BSY		0x80
@@ -13,6 +13,8 @@
 #define IDE_ERR		0x01
 
 static int diskno = 1;
+struct Super *super;
+uint32_t *bitmap;
 
 static int
 ide_wait_ready(bool check_error)
