@@ -273,6 +273,18 @@ trap_dispatch(struct Trapframe *tf)
 			lapic_eoi(); //this is not memtioned in the lab instruction
 			sched_yield(); // never return;
 			return;
+
+		case IRQ_OFFSET + IRQ_KBD:
+			//cprintf("enter IRQ dispatch\n");
+			kbd_intr();
+			env_run(curenv);
+			return;
+
+		case IRQ_OFFSET + IRQ_SERIAL:
+			//cprintf("enter IRQ dispatch\n");
+			serial_intr();
+			env_run(curenv);
+			return;
 	}
 
 	// Handle spurious interrupts

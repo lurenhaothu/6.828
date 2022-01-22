@@ -137,7 +137,20 @@ sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 	// LAB 5: Your code here.
 	// Remember to check whether the user has supplied us with a good
 	// address!
-	panic("sys_env_set_trapframe not implemented");
+	//panic("sys_env_set_trapframe not implemented");
+	struct Env *e;
+	int r;
+	r =  envid2env(envid, &e, 1);
+	if(r < 0) return r;
+	user_mem_assert(e, tf, sizeof(tf), PTE_U | PTE_P);
+	//cprintf("set chile trapframe, tf is %08x\n", tf);
+	lcr3(PADDR(curenv->env_pgdir));
+	memmove((void*)&e->env_tf, (void*)tf, sizeof(struct Trapframe));
+	lcr3(PADDR(kern_pgdir));
+	e->env_tf.tf_eflags |= FL_IF;
+	e->env_tf.tf_eflags &= (~FL_IOPL_3);
+	e->env_tf.tf_cs |= 3;
+	return 0;
 }
 
 // Set the page fault upcall for 'envid' by modifying the corresponding struct
@@ -194,7 +207,7 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	if((int)va >= UTOP || (int)va % PGSIZE != 0) return -E_INVAL;
 	if(!(perm & PTE_U) | !(perm & PTE_P)) return -E_INVAL;
 	if((perm & ~(PTE_U | PTE_P | PTE_AVAIL | PTE_W)) != 0) return -E_INVAL;
-	struct PageInfo* pp = page_alloc(0);
+	struct PageInfo* pp = page_alloc(ALLOC_ZERO);
 	if(pp == NULL) return -E_NO_MEM;
 	error_code = page_insert(e->env_pgdir, pp, va, perm);
 	if(error_code == -E_NO_MEM) return -E_NO_MEM;
@@ -320,6 +333,8 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	int r;
 	struct Env* dstenv = NULL;
 	r = envid2env(envid, &dstenv, 0);
+	//if(r < 0) cprintf("sender id: %08x, receiver id: %08x\n", thiscpu->cpu_env->env_id, envid);
+	//asm volatile("int $3");
 	REP_ERR(r);
 	if(!dstenv->env_ipc_recving || (dstenv->env_status != ENV_NOT_RUNNABLE)){
 		return -E_IPC_NOT_RECV;
@@ -410,6 +425,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return sys_ipc_try_send(a1, a2, (void*)a3, a4);
 	case SYS_ipc_recv:
 		return sys_ipc_recv((void*)a1);
+	case SYS_env_set_trapframe:
+		return sys_env_set_trapframe(a1, (struct Trapframe*)a2);
 	default:
 		return -E_INVAL;
 	}

@@ -68,13 +68,22 @@ duppage(envid_t envid, unsigned pn)
 	int r;
 
 	// LAB 4: Your code here.
-	int perm = PTE_P | PTE_U;
-	int src_perm = uvpt[pn] & 0xfff;
-	if((src_perm & PTE_W) || (src_perm & PTE_COW)) perm |= PTE_COW;
-	r = sys_page_map(thisenv->env_id, (void*)(pn * PGSIZE), envid, (void*)(pn * PGSIZE), perm);
-	if(r < 0) panic("%e\n", r);
-	r = sys_page_map(thisenv->env_id, (void*)(pn * PGSIZE), thisenv->env_id, (void*)(pn * PGSIZE), perm);
-	if(r < 0) panic("%e\n", r);
+	int perm;
+	int src_perm = uvpt[pn] & PTE_SYSCALL;
+	if(src_perm & PTE_SHARE){
+		r = sys_page_map(thisenv->env_id, (void*)(pn * PGSIZE), envid, (void*)(pn * PGSIZE), src_perm);
+		//cprintf("1 shared page.\n");
+		if(r < 0) panic("%e\n", r);
+	}else if((src_perm & PTE_W) || (src_perm & PTE_COW)){
+		perm = (src_perm | PTE_COW) & (~PTE_W);
+		r = sys_page_map(thisenv->env_id, (void*)(pn * PGSIZE), envid, (void*)(pn * PGSIZE), perm);
+		if(r < 0) panic("%e\n", r);
+		r = sys_page_map(thisenv->env_id, (void*)(pn * PGSIZE), thisenv->env_id, (void*)(pn * PGSIZE), perm);
+		if(r < 0) panic("%e\n", r);
+	}else{
+		r = sys_page_map(thisenv->env_id, (void*)(pn * PGSIZE), envid, (void*)(pn * PGSIZE), src_perm);
+		if(r < 0) panic("%e\n", r);
+	}
 	//panic("duppage not implemented");
 	return 0;
 }
@@ -112,9 +121,17 @@ fork(void)
 		int end_pn = (unsigned int)end >> 12;
 		duppage(child_id, (unsigned int)(USTACKTOP - PGSIZE) >> 12);
 		//cprintf("finished copying user normal stack\n");
-		for(int i = start_pn; i <= end_pn; i++){
-			duppage(child_id, i);
+		/*for(int i = start_pn; i <= end_pn; i++){
+			r = duppage(child_id, i);
+			if(r < 0) panic("%e\n", r);
 			//cprintf("copied one page\n");
+		}*/
+		for(unsigned int pn = 0; pn < PGNUM(USTACKTOP - PGSIZE); pn++){
+			while(!(uvpd[pn >> 10] & PTE_P)) pn += 1024;
+			if(uvpt[pn] & PTE_P) {
+				r = duppage(child_id, pn);
+				if(r < 0) panic("%e\n", r);
+			}
 		}
 		//cprintf("finished copying UTEXT to end\n");
 		r = sys_page_alloc(child_id, (void*)(UXSTACKTOP - PGSIZE), PTE_U | PTE_P | PTE_W);

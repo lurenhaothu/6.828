@@ -302,6 +302,20 @@ static int
 copy_shared_pages(envid_t child)
 {
 	// LAB 5: Your code here.
+	int r;
+	//cprintf("enter copy shared page()\n");
+	//extern unsigned char end[];
+	//int start_pn = (unsigned int)UTEXT >> 12;
+	//int end_pn = (unsigned int)end >> 12;
+	for(unsigned int pn = 0; pn < PGNUM(USTACKTOP - PGSIZE); pn++){
+		while(!(uvpd[pn >> 10] & PTE_P)) pn += 1024;
+		//cprintf("1 unshared page.\n");
+		if((uvpt[pn] & PTE_P) && (uvpt[pn] & PTE_SHARE)){
+			//cprintf("1 shared page.\n");
+			r = sys_page_map(thisenv->env_id, (void*)(pn * PGSIZE), child, (void*)(pn * PGSIZE), uvpt[pn] & PTE_SYSCALL);
+			if(r < 0) panic("%e\n", r);
+		}
+	}
 	return 0;
 }
 

@@ -62,8 +62,16 @@ alloc_block(void)
 	// super->s_nblocks blocks in the disk altogether.
 
 	// LAB 5: Your code here.
-	panic("alloc_block not implemented");
-	return -E_NO_DISK;
+	//panic("alloc_block not implemented");
+	uint32_t index = 0;
+	while(bitmap[index] == 0) index++;
+	uint32_t offset = 0, bit = bitmap[index];
+	while(bit % 2 == 0) bit = bit >> 1, offset++;
+	uint32_t blockno = index * 32 + offset;
+	if(blockno >= super->s_nblocks) return -E_NO_DISK;	
+	bitmap[index] &= (~1<<offset);
+	flush_block(bitmap);
+	return blockno;
 }
 
 // Validate the file system bitmap.
@@ -135,7 +143,26 @@ static int
 file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool alloc)
 {
        // LAB 5: Your code here.
-       panic("file_block_walk not implemented");
+       //panic("file_block_walk not implemented");
+	int r;
+	if(filebno < NDIRECT){
+		*ppdiskbno = &f->f_direct[filebno];
+	}else if(filebno >= NDIRECT + NINDIRECT){
+		return -E_INVAL;
+	}else{
+	   	if(f->f_indirect == 0){
+		    if(!alloc) return -E_NOT_FOUND;
+		    else{
+			    r = alloc_block();
+			    if(r < 0) return -E_NO_DISK;
+			    f->f_indirect = r;
+				memset(diskaddr(r), 0, PGSIZE);
+				flush_block(diskaddr(r));
+		    }
+	    }
+	    *ppdiskbno = (uint32_t*)diskaddr(f->f_indirect) + filebno - NDIRECT;
+	}
+	return 0;
 }
 
 // Set *blk to the address in memory where the filebno'th
@@ -150,7 +177,22 @@ int
 file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
        // LAB 5: Your code here.
-       panic("file_get_block not implemented");
+       //panic("file_get_block not implemented");
+	int r;
+	uint32_t* diskbno;
+	r = file_block_walk(f, filebno, &diskbno, 1);
+	if(r < 0) return r;
+	if(*diskbno == 0){
+		r = alloc_block();
+		if(r < 0) return -E_NO_DISK;
+		*diskbno = r;
+		memset(diskaddr(r), 0, PGSIZE);
+		flush_block(diskaddr(r));
+		flush_block(f);
+	}
+	//if(diskbno == 0) return -E_INVAL;
+	*blk = (char*)diskaddr(*diskbno);
+	return 0;
 }
 
 // Try to find a file named "name" in dir.  If so, set *file to it.

@@ -32,14 +32,14 @@ struct File {
 	uint32_t f_type;		// file type
 
 	// Block pointers.
-	// A block is allocated iff its value is != 0.
+	// A block is allocated if its value is != 0.
 	uint32_t f_direct[NDIRECT];	// direct blocks
 	uint32_t f_indirect;		// indirect block
 
 	// Pad out to 256 bytes; must do arithmetic in case we're compiling
 	// fsformat on a 64-bit machine.
 	uint8_t f_pad[256 - MAXNAMELEN - 8 - 4*NDIRECT - 4];
-} __attribute__((packed));	// required only on some 64-bit machines
+} ;//__attribute__((packed));	// required only on some 64-bit machines
 
 // An inode block contains exactly BLKFILES 'struct File's
 #define BLKFILES	(BLKSIZE / sizeof(struct File))
