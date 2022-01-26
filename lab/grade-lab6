@@ -149,7 +149,7 @@ def test_testinput_helper(count):
                 call_on_line("Waiting for packets",
                               lambda _: send_thread.start()),
                 stop_on_line(final))
-    if send_thread.isAlive():
+    if send_thread.is_alive():
         send_thread.join()
 
     # Parse testinput hexdumps for received packets

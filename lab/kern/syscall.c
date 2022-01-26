@@ -12,6 +12,7 @@
 #include <kern/console.h>
 #include <kern/sched.h>
 #include <kern/time.h>
+#include <kern/e1000.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -392,7 +393,41 @@ static int
 sys_time_msec(void)
 {
 	// LAB 6: Your code here.
-	panic("sys_time_msec not implemented");
+	//panic("sys_time_msec not implemented");
+	//extern unsigned int ticks;
+	return time_msec();
+}
+
+// send a packet through e1000
+// return 0 if success
+//  -E1000_INVAL if parameter invalid
+//  -E1000_FULL if packet buff is full
+int
+sys_tsend(void* base, int size)
+{
+	int r;
+	r = user_mem_check(thiscpu->cpu_env, base, size, PTE_P | PTE_U);
+	if(r < 0) return r;
+	lcr3(PADDR(thiscpu->cpu_env->env_pgdir));
+	r = e1000_transpk(base, size);
+	lcr3(PADDR(kern_pgdir));
+	return r;
+}
+
+// receive a packet through e1000
+// return packet size if success
+//  -E1000_INVAL if parameter invalid
+//  -E1000_NON if packet buff is full
+int 
+sys_trcv(void* base){
+	int r;
+	r = user_mem_check(thiscpu->cpu_env, base, PK_MAXSIZE, PTE_P | PTE_U);
+	if(r < 0) return r;
+	lcr3(PADDR(thiscpu->cpu_env->env_pgdir));
+	r = e1000_rcvpk(base);
+	lcr3(PADDR(kern_pgdir));
+	//cprintf("r = %d\n", r);
+	return r;
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -402,7 +437,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// Call the function corresponding to the 'syscallno' parameter.
 	// Return any appropriate return value.
 	// LAB 3: Your code here.
-
+	int r;
 	//panic("syscall not implemented");
 	//cprintf("this syscal id is: %d\na1: %x, a2: %d\n", syscallno, a1, a2);
 	switch (syscallno) {
@@ -436,6 +471,12 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return sys_ipc_recv((void*)a1);
 	case SYS_env_set_trapframe:
 		return sys_env_set_trapframe(a1, (struct Trapframe*)a2);
+	case SYS_time_msec:
+		return sys_time_msec();
+	case SYS_Tsend:
+		return sys_tsend((void*)a1, a2);
+	case SYS_Trcv:
+		return sys_trcv((void*)a1);
 	default:
 		return -E_INVAL;
 	}

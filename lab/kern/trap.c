@@ -272,6 +272,7 @@ trap_dispatch(struct Trapframe *tf)
 		case IRQ_OFFSET + IRQ_TIMER:
 			//cprintf("enter IRQ dispatch\n");
 			lapic_eoi(); //this is not memtioned in the lab instruction
+			if(cpunum() == 0)time_tick();
 			sched_yield(); // never return;
 			return;
 

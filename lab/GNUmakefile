@@ -160,8 +160,12 @@ IMAGES = $(OBJDIR)/kern/kernel.img
 QEMUOPTS += -smp $(CPUS)
 QEMUOPTS += -drive file=$(OBJDIR)/fs/fs.img,index=1,media=disk,format=raw
 IMAGES += $(OBJDIR)/fs/fs.img
-QEMUOPTS += -net user -net nic,model=e1000 -redir tcp:$(PORT7)::7 \
+# QEMUOPTS += -net user -net nic,model=e1000 -redir tcp:$(PORT7)::7 \
 	   -redir tcp:$(PORT80)::80 -redir udp:$(PORT7)::7 -net dump,file=qemu.pcap
+QEMUOPTS += -netdev user,id=u1,hostfwd=tcp::$(PORT7)-:7,hostfwd=udp::$(PORT7)-:7,hostfwd=tcp::$(PORT80)-:80 
+QEMUOPTS += -object filter-dump,id=d1,netdev=u1,file=qemu.pcap
+QEMUOPTS += -device e1000,netdev=u1
+# -object filter-dump,id=n1,netdev=n2,file=qemu.pcap
 QEMUOPTS += $(QEMUEXTRA)
 
 .gdbinit: .gdbinit.tmpl

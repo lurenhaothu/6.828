@@ -122,3 +122,15 @@ sys_time_msec(void)
 {
 	return (unsigned int) syscall(SYS_time_msec, 0, 0, 0, 0, 0, 0);
 }
+
+int
+sys_tsend(void* base, int size)
+{
+	return syscall(SYS_Tsend, 0, (int32_t)base, size, 0, 0, 0);
+}
+
+int
+sys_trcv(void* base)
+{
+	return syscall(SYS_Trcv, 0, (int32_t)base, 0, 0, 0, 0);
+}
